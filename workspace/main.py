@@ -12,14 +12,14 @@ LangGraphを利用した計算機AIエージェント
 """
 
 import os
+import operator
 from typing import TypedDict, Annotated, Sequence
-from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
-from langchain_openai import ChatOpenAI
+from dotenv import load_dotenv
+from langchain_core.messages import BaseMessage, HumanMessage
 from langchain_core.tools import tool
+from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
-import operator
-from dotenv import load_dotenv
 
 # .envファイルから環境変数を読み込み
 load_dotenv()
@@ -123,12 +123,14 @@ def parse_and_plan_node(state: AgentState):
     messages = state["messages"]
     user_input = state["user_input"]
     
-    # LLMの初期化
+    # LLMの初期化（リトライとタイムアウト設定を追加）
     llm = ChatOpenAI(
         model=OPENAI_MODEL,
         temperature=0,
         openai_api_key=OPENAI_API_KEY,
-        openai_api_base=OPENAI_API_BASE
+        openai_api_base=OPENAI_API_BASE,
+        max_retries=3,
+        timeout=60
     )
     llm_with_tools = llm.bind_tools(tools)
     
@@ -192,12 +194,14 @@ def explain_result_node(state: AgentState):
     messages = state["messages"]
     user_input = state["user_input"]
     
-    # LLMの初期化
+    # LLMの初期化（リトライとタイムアウト設定を追加）
     llm = ChatOpenAI(
         model=OPENAI_MODEL,
         temperature=0,
         openai_api_key=OPENAI_API_KEY,
-        openai_api_base=OPENAI_API_BASE
+        openai_api_base=OPENAI_API_BASE,
+        max_retries=3,
+        timeout=60
     )
     
     # 最終結果を抽出
@@ -269,7 +273,7 @@ def create_calculator_graph():
 
 
 # =============================================================================
-# 5. メイン実行
+# 5. エージェント実行
 # =============================================================================
 
 def run_calculator_agent(user_input: str):
@@ -307,16 +311,20 @@ def run_calculator_agent(user_input: str):
     # 最終状態から結果を取得
     result_state = list(final_state.values())[0]
     
-    print(f"\n{'======================================'}")
+    print(f"\n{'='*60}")
     print(f"結果: {result_state.get('final_result', 'N/A')}")
     print(f"説明: {result_state.get('explanation', 'N/A')}")
-    print(f"{'======================================'}\n")
+    print(f"{'='*60}\n")
     
     return {
         "final_result": result_state.get("final_result"),
         "explanation": result_state.get("explanation")
     }
 
+
+# =============================================================================
+# 6. メイン実行
+# =============================================================================
 
 if __name__ == "__main__":
     # 環境変数の確認

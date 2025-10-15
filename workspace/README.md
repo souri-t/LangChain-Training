@@ -89,25 +89,43 @@ python code.py
 
 ## コード構造
 
+プロジェクトは機能ごとに複数のファイルに分割されています:
+
 ```
-code.py
-├── 1. ツール定義（四則演算）
+.
+├── code.py              # メインエントリーポイント
+├── config.py            # 環境変数の設定
+├── tools.py             # 四則演算ツールの定義
 │   ├── add()
 │   ├── subtract()
 │   ├── multiply()
 │   └── divide()
-├── 2. 状態定義
+├── state.py             # エージェントの状態定義
 │   └── AgentState (TypedDict)
-├── 3. ノード定義
+├── nodes.py             # LangGraphのノード定義
 │   ├── parse_and_plan_node()
 │   ├── tool_execution_node()
 │   ├── should_continue()
 │   └── explain_result_node()
-├── 4. グラフ構築
+├── graph.py             # グラフ構築
 │   └── create_calculator_graph()
-└── 5. メイン実行
-    └── run_calculator_agent()
+├── agent.py             # エージェント実行ロジック
+│   └── run_calculator_agent()
+├── .env                 # 環境変数（ユーザーが作成）
+├── .env.example         # 環境変数のテンプレート
+├── requirements.txt     # 依存パッケージ
+└── README.md            # このファイル
 ```
+
+### ファイルの役割
+
+- **config.py**: `.env`ファイルから環境変数を読み込み、OpenAI APIの設定を管理
+- **tools.py**: 四則演算を行う4つのツール関数を定義
+- **state.py**: エージェントが保持する状態（メッセージ履歴、入力、結果など）を定義
+- **nodes.py**: LangGraphの各ノード（処理ステップ）を実装
+- **graph.py**: ノードとエッジを組み合わせてワークフローグラフを構築
+- **agent.py**: エージェントの実行ロジックとメイン処理
+- **code.py**: プログラムのエントリーポイント
 
 ## アーキテクチャ
 
