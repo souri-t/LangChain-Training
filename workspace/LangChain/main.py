@@ -134,8 +134,10 @@ def parse_and_plan_node(state: AgentState):
     )
     llm_with_tools = llm.bind_tools(tools)
     
-    # システムプロンプト
-    system_message = """あなたは計算を実行するアシスタントです。
+    # 新しい計算の場合、指示を含むユーザーメッセージを作成
+    if len(messages) == 0:
+        # システムプロンプトとユーザー入力を1つのメッセージに統合
+        combined_message = f"""あなたは計算を実行するアシスタントです。
 ユーザーの自然言語の入力から、必要な計算を段階的に実行してください。
 
 利用可能なツール:
@@ -146,17 +148,27 @@ def parse_and_plan_node(state: AgentState):
 
 計算は複数ステップに分けて実行してください。
 例: "125と89を足して、その後10を引く" → まずadd(125, 89)を実行し、その結果をsubtract(結果, 10)で処理
-"""
-    
-    # 新しい計算の場合、システムメッセージを追加
-    if len(messages) == 0:
-        messages = [
-            HumanMessage(content=system_message),
-            HumanMessage(content=f"次の計算を実行してください: {user_input}")
-        ]
+
+次の計算を実行してください: {user_input}"""
+        
+        messages = [HumanMessage(content=combined_message)]
+    else:
+        # ツール実行後の場合、ToolMessageの後にユーザーメッセージを追加して交互パターンを維持
+        # LM Studioは user/assistant の交互パターンを要求するため
+        from langchain_core.messages import ToolMessage
+        
+        # 最後のメッセージがToolMessageの場合、ユーザーメッセージを追加
+        if messages and isinstance(messages[-1], ToolMessage):
+            messages = list(messages) + [HumanMessage(content="続けてください。")]
     
     # LLMを呼び出してツール使用を含む応答を取得
-    response = llm_with_tools.invoke(messages)
+    try:
+        response = llm_with_tools.invoke(messages)
+    except Exception as e:
+        # エラー発生時はツールを使わない通常のLLMに切り替え
+        print(f"警告: ツール使用時にエラーが発生しました: {e}")
+        print("ツールなしのモードで続行します...")
+        response = llm.invoke(messages)
     
     return {
         "messages": [response]
@@ -327,18 +339,6 @@ def run_calculator_agent(user_input: str):
 # =============================================================================
 
 if __name__ == "__main__":
-    # 環境変数の確認
-    if not OPENAI_API_KEY:
-        print("エラー: OPENAI_API_KEY が設定されていません")
-        print(".env ファイルを作成して以下の設定を追加してください:")
-        print("  OPENAI_API_KEY=your-api-key")
-        print("  OPENAI_API_BASE=https://api.openai.com/v1")
-        print("  OPENAI_MODEL=gpt-4o-mini")
-        exit(1)
-    
-    print(f"使用するモデル: {OPENAI_MODEL}")
-    print(f"APIエンドポイント: {OPENAI_API_BASE}")
-    print()
     
     # 例の実行
     example_input = "125と89を足して、その後10を引いてください"
