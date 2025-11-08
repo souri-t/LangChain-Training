@@ -1,0 +1,10 @@
+以下は、英国の政府主要閣僚の氏名をカタカナ表記にした一覧です。※2025年9月時点。
+
+| 職名                                                                                | 氏名（カタカナ）   |
+| --------------------------------------------------------------------------------- | ---------- |
+| 内閣総理大臣（Prime Minister）                                                            | キール・スター マー |
+| 副首相／法務・正義大臣（Deputy Prime Minister＆Secretary of State for Justice）                 | デイヴィッド・ラミー |
+| 財務大臣（Chancellor of the Exchequer）                                                 | レイチェル・リーブス |
+| 外交・英連邦・開発担当大臣（Secretary of State for Foreign, Commonwealth & Development Affairs） | イヴェット・クーパー |
+| 内務大臣（Secretary of State for the Home Department）                                  | シャバナ・マフムード |
+| 防衛大臣（Secretary of State for Defence）                                              | ジョン・ヒーリー   |
