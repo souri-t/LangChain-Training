@@ -74,3 +74,21 @@ class ChromaManager:
                 ids_to_delete.append(doc_id)
         if ids_to_delete:
             self.collection.delete(ids=ids_to_delete)
+
+    def update_metadata(self, doc_id: str, new_metadata: dict):
+        """
+        指定したドキュメントのメタデータのみを更新する。
+        embedding次元不一致エラーを回避する。
+        Args:
+            doc_id (str): 更新対象のドキュメントID
+            new_metadata (dict): 新しいメタデータ
+        """
+        try:
+            # collection.updateメタデータのみ更新（ChromaDB公式APIの推奨方法）
+            # ドキュメント本体・embeddingは変更せず、メタデータのみ変更
+            self.collection.update(
+                ids=[doc_id],
+                metadatas=[new_metadata]
+            )
+        except Exception as e:
+            raise Exception(f"メタデータ更新エラー: {e}")

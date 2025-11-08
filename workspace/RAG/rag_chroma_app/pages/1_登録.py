@@ -3,6 +3,7 @@
 PDF・テキストファイルの読み込み、埋め込み生成、同名ファイルの上書き登録に対応。
 """
 import streamlit as st
+from datetime import datetime
 import os
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
@@ -69,7 +70,10 @@ if st.button("ベクトル化"):
             # 既存ファイル名があれば削除してから追加
             for fn in st.session_state['uploaded_files']:
                 chroma.delete_by_filename(fn)
-            chroma.add_documents(st.session_state['texts'], metadatas=[{"filename": fn} for fn in st.session_state['uploaded_files']], embeddings=embeddings)
+            now = datetime.now().isoformat(timespec='seconds')
+            # ディレクトリパス（初期値は空文字列、将来変更可能）もメタデータに追加
+            metadatas = [{"filename": fn, "created_at": now, "directory": "/"} for fn in st.session_state['uploaded_files']]
+            chroma.add_documents(st.session_state['texts'], metadatas=metadatas, embeddings=embeddings)
             st.session_state['vectorized'] = True
             st.success("ベクトル化＆ChromaDB登録が完了しました。")
         except Exception as e:
