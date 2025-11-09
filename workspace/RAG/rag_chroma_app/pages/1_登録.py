@@ -1,7 +1,7 @@
 """
 ファイルアップロード・ベクトル化・ChromaDB登録を行うStreamlitページ。
 PDF・テキストファイルの読み込み、埋め込み生成、同名ファイルの上書き登録に対応。
-設定ファイルで OpenRouter, Azure OpenAI, Sentence-Transformers を選択可能。
+設定ファイルで Generic（OpenRouter/Ollama）, Azure OpenAI, Sentence-Transformers を選択可能。
 """
 import streamlit as st
 import os
@@ -9,7 +9,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from app import config
 from services.RAG.rag_service import RAGService
-from services.Vector.openrouter_file_service import OpenRouterEmbedder
+from services.Vector.generic_embedder import GenericEmbedder
 from services.Vector.azure_openai_embedder import AzureOpenAIEmbedder
 from services.Vector.sentence_transformer_service import SentenceTransformerEmbedder
 from utils import extract_text_from_pdf
@@ -19,17 +19,17 @@ def create_embedder():
     """
     config.yaml の embedder.type に基づいて、適切な Embedder インスタンスを作成する。
     Returns:
-        BaseEmbedder: OpenRouterEmbedder, AzureOpenAIEmbedder, または SentenceTransformerEmbedder のインスタンス
+        BaseEmbedder: GenericEmbedder, AzureOpenAIEmbedder, または SentenceTransformerEmbedder のインスタンス
     Raises:
         ValueError: 不正な embedder.type が指定された場合
     """
-    embedder_type = config.get('embedder', {}).get('type', 'openrouter')
+    embedder_type = config.get('embedder', {}).get('type', 'generic')
     
-    if embedder_type == 'openrouter':
-        return OpenRouterEmbedder(
-            api_key=config['openrouter']['api_key'],
-            embedding_url=config['openrouter']['embedding_url'],
-            model=config['openrouter']['model']
+    if embedder_type == 'generic':
+        return GenericEmbedder(
+            api_key=config['generic']['api_key'],
+            embedding_url=config['generic']['embedding_url'],
+            model=config['generic']['model']
         )
     elif embedder_type == 'azure-openai':
         return AzureOpenAIEmbedder(
@@ -43,7 +43,7 @@ def create_embedder():
             model_name=config['sentence_transformer']['model_name']
         )
     else:
-        raise ValueError(f"不正な embedder.type: {embedder_type}。'openrouter', 'azure-openai', または 'sentence-transformer' を指定してください。")
+        raise ValueError(f"不正な embedder.type: {embedder_type}。'generic', 'azure-openai', または 'sentence-transformer' を指定してください。")
 
 
 st.title("ファイル登録ページ")
