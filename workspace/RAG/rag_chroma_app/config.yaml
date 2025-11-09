@@ -8,12 +8,12 @@ embedder:
 # 汎用エンドポイント設定（type: "generic" の場合に使用）
 # OpenRouter, Ollama, その他 OpenAI API 互換エンドポイント対応
 generic:
-  api_key: ""  # APIキー（Ollama などローカルサーバーでは不要）
-  embedding_url: "http://host.docker.internal:1234/v1/embeddings"  # エンドポイント URL
-  model: "text-embedding-nomic-embed-text-v1.5@q8_0"  # モデル名
   # api_key: ""  # APIキー（Ollama などローカルサーバーでは不要）
-  # embedding_url: "http://host.docker.internal:11434/api/embeddings"  # エンドポイント URL
-  # model: "nomic-embed-text:latest"  # モデル名
+  # embedding_url: "http://host.docker.internal:1234/v1/embeddings"  # エンドポイント URL
+  # model: "text-embedding-nomic-embed-text-v1.5@q8_0"  # モデル名
+  api_key: ""  # APIキー（Ollama などローカルサーバーでは不要）
+  embedding_url: "http://host.docker.internal:11434/api/embeddings"  # エンドポイント URL
+  model: "embeddinggemma:latest"  # モデル名
 
 # Azure OpenAI 設定（type: "azure-openai" の場合に使用）
 azure_openai:
@@ -31,4 +31,4 @@ sentence_transformer:
 
 # ChromaDB 設定
 chroma:
-  persist_directory: "/workspace/RAG/chroma_db"
+  persist_directory: "../chroma_db"
