@@ -157,8 +157,12 @@ class RAGService:
         
         search_results = []
         for i, (doc, meta, score) in enumerate(zip(docs, metadatas, scores)):
-            # スコアを類似度に変換（cosine距離を類似度に）
-            similarity = 1 - score
+            # L2距離を類似度に変換
+            # L2距離では距離が小さいほど類似度が高い
+            # 式: similarity = 1 / (1 + distance)
+            # これにより、距離0 → 類似度1, 距離∞ → 類似度0 となる
+            similarity = 1.0 / (1.0 + score)
+            
             if similarity >= threshold:
                 search_results.append({
                     "filename": meta.get("filename", "(不明)"),

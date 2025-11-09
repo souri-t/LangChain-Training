@@ -78,6 +78,10 @@ if st.button("検索"):
             
             st.subheader(f"検索結果（閾値: {threshold:.2f} 以上のみ表示）")
             if results:
+                # ヒット件数を表示
+                st.success(f"✓ {len(results)} 件ヒットしました")
+                st.divider()
+                
                 for i, result in enumerate(results):
                     st.markdown(f"**{i+1}. ファイル名:** {result['filename']}")
                     st.markdown(f"**スコア:** {result['score']}")
