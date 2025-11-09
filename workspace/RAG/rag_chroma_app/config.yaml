@@ -1,6 +1,29 @@
+# RAG アプリケーション設定ファイル
+
+# 埋め込みバックエンドの選択: "openrouter", "azure-openai", "sentence-transformer"
+embedder:
+  type: "openrouter"  # "openrouter", "azure-openai", "sentence-transformer"
+
+# OpenRouter 設定（type: "openrouter" の場合に使用）
 openrouter:
   api_key: ""
   embedding_url: "http://host.docker.internal:1234/v1/embeddings"
   model: "text-embedding-nomic-embed-text-v1.5@q8_0"
+
+# Azure OpenAI 設定（type: "azure-openai" の場合に使用）
+azure_openai:
+  api_key: ""  # Azure OpenAI APIキー
+  endpoint: ""  # 例: https://your-resource.openai.azure.com
+  deployment_name: "text-embedding-ada-002"  # デプロイメント名
+  api_version: "2024-02-01"  # APIバージョン
+
+# Sentence-Transformers 設定（type: "sentence-transformer" の場合に使用）
+sentence_transformer:
+  model_name: "all-mpnet-base-v2"  # 使用するモデル名（軽量・高速）
+  # 他の推奨モデル:
+  # - "paraphrase-multilingual-MiniLM-L12-v2" (多言語対応)
+  # - "all-mpnet-base-v2" (高精度)
+
+# ChromaDB 設定
 chroma:
   persist_directory: "/workspace/RAG/chroma_db"

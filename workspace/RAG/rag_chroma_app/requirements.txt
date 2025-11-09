@@ -3,3 +3,6 @@ chromadb
 openai
 PyPDF2
 python-dotenv
+requests
+sentence-transformers
+pyyaml

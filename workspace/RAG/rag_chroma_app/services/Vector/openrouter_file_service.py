@@ -1,14 +1,13 @@
-
 """
-OpenRouter APIを利用した埋め込みベクトル生成クラス。
-指定したモデル・エンドポイントでテキストからベクトルを取得する。
+OpenRouter埋め込みAPIクライアント
 """
 
-import requests
 from typing import List
+import requests
+from .base_embedder import BaseEmbedder
 
 
-class OpenRouterEmbedder:
+class OpenRouterEmbedder(BaseEmbedder):
     """
     OpenRouter埋め込みAPIクライアントクラス。
     指定モデル・エンドポイントでテキストから埋め込みベクトルを取得する。
@@ -25,7 +24,6 @@ class OpenRouterEmbedder:
         self.api_key = api_key
         self.embedding_url = embedding_url
         self.model = model
-        # APIキーが空文字列の場合は不要とみなす
 
     def embed(self, texts: List[str]) -> List[List[float]]:
         """

@@ -1,20 +1,52 @@
 """
 ファイルアップロード・ベクトル化・ChromaDB登録を行うStreamlitページ。
 PDF・テキストファイルの読み込み、埋め込み生成、同名ファイルの上書き登録に対応。
+設定ファイルで OpenRouter, Azure OpenAI, Sentence-Transformers を選択可能。
 """
 import streamlit as st
-from datetime import datetime
 import os
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from app import config
-from openrouter_embedder import OpenRouterEmbedder
-from chroma_manager import ChromaManager
+from services.RAG.rag_service import RAGService
+from services.Vector.openrouter_file_service import OpenRouterEmbedder
+from services.Vector.azure_openai_embedder import AzureOpenAIEmbedder
+from services.Vector.sentence_transformer_service import SentenceTransformerEmbedder
 from utils import extract_text_from_pdf
 
+
+def create_embedder():
+    """
+    config.yaml の embedder.type に基づいて、適切な Embedder インスタンスを作成する。
+    Returns:
+        BaseEmbedder: OpenRouterEmbedder, AzureOpenAIEmbedder, または SentenceTransformerEmbedder のインスタンス
+    Raises:
+        ValueError: 不正な embedder.type が指定された場合
+    """
+    embedder_type = config.get('embedder', {}).get('type', 'openrouter')
+    
+    if embedder_type == 'openrouter':
+        return OpenRouterEmbedder(
+            api_key=config['openrouter']['api_key'],
+            embedding_url=config['openrouter']['embedding_url'],
+            model=config['openrouter']['model']
+        )
+    elif embedder_type == 'azure-openai':
+        return AzureOpenAIEmbedder(
+            api_key=config['azure_openai']['api_key'],
+            endpoint=config['azure_openai']['endpoint'],
+            deployment_name=config['azure_openai']['deployment_name'],
+            api_version=config['azure_openai'].get('api_version', '2024-02-01')
+        )
+    elif embedder_type == 'sentence-transformer':
+        return SentenceTransformerEmbedder(
+            model_name=config['sentence_transformer']['model_name']
+        )
+    else:
+        raise ValueError(f"不正な embedder.type: {embedder_type}。'openrouter', 'azure-openai', または 'sentence-transformer' を指定してください。")
+
+
 st.title("ファイル登録ページ")
-
-
 
 # セッション状態の初期化
 if 'uploaded_files' not in st.session_state:
@@ -24,9 +56,7 @@ if 'texts' not in st.session_state:
 if 'vectorized' not in st.session_state:
     st.session_state['vectorized'] = False
 
-
 uploaded_files = st.file_uploader("テキストファイルまたはPDFをアップロード", type=["txt", "pdf"], accept_multiple_files=True)
-
 
 # ファイルアップロード処理
 if uploaded_files:
@@ -48,33 +78,33 @@ if uploaded_files:
     st.session_state['vectorized'] = False
     st.success(f"{len(uploaded_files)}件のファイルを読み込みました。")
 
-
-
 # ベクトル化・ChromaDB登録処理
 if st.button("ベクトル化"):
     """
-    アップロード済みテキストをOpenRouterでベクトル化し、ChromaDBに登録する。
+    アップロード済みテキストを config で指定された Embedder を使用してベクトル化し、ChromaDBに登録する。
     既存ファイル名は上書き登録とする。
     """
     if not st.session_state['texts']:
         st.warning("先にファイルをアップロードしてください。")
     else:
         try:
-            embedder = OpenRouterEmbedder(
-                api_key=config['openrouter']['api_key'],
-                embedding_url=config['openrouter']['embedding_url'],
-                model=config['openrouter']['model']
+            # config で指定された Embedder を作成
+            embedder = create_embedder()
+            
+            # RAGService を初期化（embedder をインジェクション）
+            rag_service = RAGService(
+                embedder=embedder,
+                chroma_persist_directory=config['chroma']['persist_directory']
             )
-            embeddings = embedder.embed(st.session_state['texts'])
-            chroma = ChromaManager(persist_directory=config['chroma']['persist_directory'])
-            # 既存ファイル名があれば削除してから追加
-            for fn in st.session_state['uploaded_files']:
-                chroma.delete_by_filename(fn)
-            now = datetime.now().isoformat(timespec='seconds')
-            # ディレクトリパス（初期値は空文字列、将来変更可能）もメタデータに追加
-            metadatas = [{"filename": fn, "created_at": now, "directory": "/"} for fn in st.session_state['uploaded_files']]
-            chroma.add_documents(st.session_state['texts'], metadatas=metadatas, embeddings=embeddings)
+            
+            # ベクトル化・登録
+            rag_service.vectorize_and_register(
+                st.session_state['texts'],
+                st.session_state['uploaded_files']
+            )
             st.session_state['vectorized'] = True
-            st.success("ベクトル化＆ChromaDB登録が完了しました。")
+            embedder_type = config.get('embedder', {}).get('type', 'openrouter')
+            st.success(f"ベクトル化（{embedder_type}）＆ChromaDB登録が完了しました。")
         except Exception as e:
             st.error(f"ベクトル化処理でエラー: {e}")
+
