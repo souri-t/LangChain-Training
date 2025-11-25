@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Chroma RAG アプリ</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: "Source Sans Pro", sans-serif;
+        display: flex;
+        height: 100vh;
+      }
+      #sidebar {
+        width: 250px;
+        background: #f0f2f6;
+        padding: 2rem 1rem;
+        border-right: 1px solid #ddd;
+        overflow-y: auto;
+      }
+      #sidebar h2 {
+        font-size: 1.2rem;
+        margin: 0 0 1rem 0;
+      }
+      #sidebar nav a {
+        display: block;
+        padding: 0.5rem 1rem;
+        margin: 0.25rem 0;
+        text-decoration: none;
+        color: #333;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      #sidebar nav a:hover, #sidebar nav a.active {
+        background: #fff;
+        font-weight: 600;
+      }
+      #content {
+        flex: 1;
+        padding: 2rem;
+        overflow-y: auto;
+      }
+      h1 {
+        font-size: 2rem;
+        margin: 0 0 1.5rem 0;
+      }
+      h2 {
+        font-size: 1.5rem;
+        margin: 1.5rem 0 1rem 0;
+      }
+      .page {
+        display: none;
+      }
+      .page.active {
+        display: block;
+      }
+      input[type="file"], input[type="text"], input[type="range"] {
+        padding: 0.5rem;
+        margin: 0.5rem 0;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        width: 100%;
+        max-width: 500px;
+      }
+      button {
+        padding: 0.5rem 1.5rem;
+        background: #ff4b4b;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 1rem;
+        margin: 0.5rem 0.5rem 0.5rem 0;
+      }
+      button:hover {
+        background: #e04444;
+      }
+      .result-item {
+        border-bottom: 1px solid #ddd;
+        padding: 1rem 0;
+      }
+      .success {
+        color: #0f8549;
+        background: #d4edda;
+        padding: 0.75rem;
+        border-radius: 4px;
+        margin: 1rem 0;
+      }
+      .info {
+        color: #084298;
+        background: #cfe2ff;
+        padding: 0.75rem;
+        border-radius: 4px;
+        margin: 1rem 0;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1rem 0;
+      }
+      table th, table td {
+        text-align: left;
+        padding: 0.75rem;
+        border-bottom: 1px solid #ddd;
+      }
+      table th {
+        background: #f8f9fa;
+        font-weight: 600;
+      }
+      .slider-container {
+        margin: 1rem 0;
+      }
+      .slider-container label {
+        display: block;
+        margin-bottom: 0.25rem;
+      }
+      .slider-value {
+        display: inline-block;
+        margin-left: 0.5rem;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="sidebar">
+      <h2>Chroma RAG アプリ</h2>
+      <nav>
+        <a href="#" data-page="home" class="active">ホーム</a>
+        <a href="#" data-page="register">ファイル登録</a>
+        <a href="#" data-page="search">検索</a>
+        <a href="#" data-page="files">ファイル一覧</a>
+      </nav>
+    </div>
+    
+    <div id="content">
+      <!-- ホームページ -->
+      <div id="home" class="page active">
+        <h1>Chroma RAG アプリ</h1>
+        <p>左のサイドバーからページを選択してください。</p>
+      </div>
+
+      <!-- ファイル登録ページ -->
+      <div id="register" class="page">
+        <h1>ファイル登録ページ</h1>
+        <h2>テキストファイルまたはPDFをアップロード</h2>
+        <div style="margin: 1rem 0;">
+          <label for="upload-files" style="display: inline-block; padding: 0.5rem 1rem; background: #4CAF50; color: white; border-radius: 4px; cursor: pointer;">
+            📁 ファイルを選択
+          </label>
+          <input type="file" id="upload-files" name="upload-files" multiple accept=".txt,.pdf" style="display: none;" onchange="displaySelectedFiles()" />
+          <span id="selected-files-display" style="margin-left: 1rem; color: #666;">ファイルが選択されていません</span>
+        </div>
+        <div id="upload-status"></div>
+        <button onclick="uploadAndVectorize()">ベクトル化</button>
+        <div id="vectorize-status"></div>
+      </div>
+
+      <!-- 検索ページ -->
+      <div id="search" class="page">
+        <h1>検索ページ</h1>
+        <label>検索ワードを入力してください</label>
+        <input type="text" id="search-query" placeholder="検索ワード" />
+        
+        <div class="slider-container">
+          <label>スコア閾値（0.0〜1.0）<span class="slider-value" id="threshold-value">0.20</span></label>
+          <input type="range" id="threshold-slider" min="0" max="100" value="20" step="1" />
+        </div>
+        
+        <div class="slider-container">
+          <label>プレビュー表示文字数<span class="slider-value" id="preview-value">500</span></label>
+          <input type="range" id="preview-slider" min="50" max="2000" value="500" step="50" />
+        </div>
+        
+        <button onclick="performSearch()">検索</button>
+        <div id="search-results"></div>
+      </div>
+
+      <!-- ファイル一覧ページ -->
+      <div id="files" class="page">
+        <h1>登録ファイル一覧</h1>
+        <button onclick="loadFileList()">更新</button>
+        <div id="file-list"></div>
+      </div>
+    </div>
+
+    <script>
+      // ページ切り替え
+      document.querySelectorAll('#sidebar nav a').forEach(link => {
+        link.addEventListener('click', (e) => {
+          e.preventDefault();
+          const page = e.target.dataset.page;
+          document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+          document.querySelectorAll('#sidebar nav a').forEach(a => a.classList.remove('active'));
+          document.getElementById(page).classList.add('active');
+          e.target.classList.add('active');
+          
+          // ファイル一覧ページを開いたら自動更新
+          if (page === 'files') loadFileList();
+        });
+      });
+
+      // 選択されたファイルの表示更新
+      function displaySelectedFiles() {
+        const input = document.getElementById('upload-files');
+        const display = document.getElementById('selected-files-display');
+        if (input.files.length === 0) {
+          display.textContent = 'ファイルが選択されていません';
+          display.style.color = '#666';
+        } else if (input.files.length === 1) {
+          display.textContent = `✓ ${input.files[0].name} が選択されました`;
+          display.style.color = '#4CAF50';
+        } else {
+          display.textContent = `✓ ${input.files.length} 個のファイルが選択されました`;
+          display.style.color = '#4CAF50';
+        }
+      }
+
+      // スライダー値の表示更新
+      document.getElementById('threshold-slider').addEventListener('input', (e) => {
+        const val = (e.target.value / 100).toFixed(2);
+        document.getElementById('threshold-value').textContent = val;
+      });
+      document.getElementById('preview-slider').addEventListener('input', (e) => {
+        document.getElementById('preview-value').textContent = e.target.value;
+      });
+
+      // ファイルアップロード＆ベクトル化
+      async function uploadAndVectorize() {
+        const files = document.getElementById('upload-files').files;
+        if (!files.length) {
+          document.getElementById('vectorize-status').innerHTML = '<div class="info">先にファイルをアップロードしてください。</div>';
+          return;
+        }
+        
+        const fd = new FormData();
+        for (const f of files) fd.append('files', f);
+        
+        document.getElementById('vectorize-status').innerHTML = '処理中...';
+        try {
+          const res = await fetch('/api/files/upload', { method: 'POST', body: fd });
+          
+          // レスポンスのステータスとテキストを確認
+          if (!res.ok) {
+            const text = await res.text();
+            throw new Error(`HTTP ${res.status}: ${text.substring(0, 200)}`);
+          }
+          
+          const contentType = res.headers.get('content-type');
+          if (!contentType || !contentType.includes('application/json')) {
+            const text = await res.text();
+            throw new Error(`JSONではないレスポンス: ${text.substring(0, 200)}`);
+          }
+          
+          const json = await res.json();
+          if (json.success) {
+            document.getElementById('vectorize-status').innerHTML = `<div class="success">ベクトル化＆登録が完了しました。（${files.length}件）</div>`;
+            document.getElementById('upload-files').value = '';
+          } else {
+            document.getElementById('vectorize-status').innerHTML = `<div class="info">エラー: ${json.error || 'Unknown error'}</div>`;
+          }
+        } catch (e) {
+          document.getElementById('vectorize-status').innerHTML = `<div class="info">ベクトル化処理でエラー: ${e.message}</div>`;
+        }
+      }
+
+      // 検索
+      async function performSearch() {
+        const query = document.getElementById('search-query').value;
+        if (!query) {
+          document.getElementById('search-results').innerHTML = '<div class="info">検索ワードを入力してください。</div>';
+          return;
+        }
+        
+        const threshold = parseFloat(document.getElementById('threshold-slider').value) / 100;
+        const previewChars = parseInt(document.getElementById('preview-slider').value);
+        
+        document.getElementById('search-results').innerHTML = '検索中...';
+        try {
+          const res = await fetch('/api/search', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query, threshold, nResults: 5 })
+          });
+          const json = await res.json();
+          
+          if (json.success && json.data.results.length > 0) {
+            let html = `<h2>検索結果（閾値: ${threshold.toFixed(2)} 以上のみ表示）</h2>`;
+            html += `<div class="success">✓ ${json.data.hit_count} 件ヒットしました</div>`;
+            json.data.results.forEach((r, i) => {
+              html += `<div class="result-item">`;
+              html += `<strong>${r.rank}. ファイル名:</strong> ${r.filename}<br>`;
+              html += `<strong>スコア:</strong> ${r.score}<br>`;
+              html += `<strong>内容:</strong> ${r.document.substring(0, previewChars)}...`;
+              html += `</div>`;
+            });
+            document.getElementById('search-results').innerHTML = html;
+          } else {
+            document.getElementById('search-results').innerHTML = '<div class="info">条件に合致する結果がありません。</div>';
+          }
+        } catch (e) {
+          document.getElementById('search-results').innerHTML = `<div class="info">検索処理でエラー: ${e.message}</div>`;
+        }
+      }
+
+      // ファイル一覧取得
+      async function loadFileList() {
+        document.getElementById('file-list').innerHTML = '読込中...';
+        try {
+          const res = await fetch('/api/files/list');
+          const json = await res.json();
+          
+          if (json.success && json.data.files.length > 0) {
+            let html = '<h2>登録済みファイル一覧（表形式）</h2>';
+            html += '<table><thead><tr><th>ファイル名</th><th>ディレクトリ</th><th>登録日時</th></tr></thead><tbody>';
+            json.data.files.forEach(f => {
+              html += `<tr><td>${f.filename}</td><td>${f.directory}</td><td>${f.createdAt}</td></tr>`;
+            });
+            html += '</tbody></table>';
+            document.getElementById('file-list').innerHTML = html;
+          } else {
+            document.getElementById('file-list').innerHTML = '<div class="info">登録ファイルはありません。</div>';
+          }
+        } catch (e) {
+          document.getElementById('file-list').innerHTML = `<div class="info">ファイル一覧取得でエラー: ${e.message}</div>`;
+        }
+      }
+    </script>
+  </body>
+</html>
