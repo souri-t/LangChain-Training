@@ -83,19 +83,17 @@ namespace MSAgentFramework.RagApp.Controllers
         }
 
         [HttpPost("update-directories")]
-        public async Task<IActionResult> UpdateDirectories([FromBody] List<Dictionary<string, object>> updates)
+        public async Task<IActionResult> UpdateDirectories([FromBody] DirectoryUpdateRequestDto request)
         {
-            var list = new List<(int DocId, string NewDirectory)>();
-            foreach (var u in updates)
+            if (request?.Updates == null || request.Updates.Count == 0)
             {
-                if (u.TryGetValue("doc_id", out var docIdObj) && u.TryGetValue("new_directory", out var dirObj))
-                {
-                    if (int.TryParse(docIdObj.ToString(), out int docId))
-                    {
-                        list.Add((docId, dirObj.ToString() ?? "/"));
-                    }
-                }
+                return BadRequest(new { success = false, error = "No updates provided" });
             }
+
+            var list = request.Updates
+                .Select(u => (u.DocId, u.NewDirectory ?? "/"))
+                .ToList();
+            
             await _store.UpdateDirectoriesAsync(list);
             return Ok(new { success = true });
         }

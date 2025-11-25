@@ -23,4 +23,15 @@ namespace MSAgentFramework.RagApp.Models
         public string Document { get; set; } = string.Empty;
         public string? CreatedAt { get; set; }
     }
+
+    public class DirectoryUpdateDto
+    {
+        public int DocId { get; set; }
+        public string NewDirectory { get; set; } = string.Empty;
+    }
+
+    public class DirectoryUpdateRequestDto
+    {
+        public List<DirectoryUpdateDto> Updates { get; set; } = new List<DirectoryUpdateDto>();
+    }
 }

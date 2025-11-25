@@ -180,6 +180,14 @@
         <h1>登録ファイル一覧</h1>
         <button onclick="loadFileList()">更新</button>
         <div id="file-list"></div>
+        <div id="file-edit-section" style="display: none; margin-top: 2rem;">
+          <hr>
+          <h3>ディレクトリ編集欄</h3>
+          <p style="color: #666; font-size: 0.9rem;">※下の各行でディレクトリを編集後、「すべて保存」ボタンで一括反映できます。</p>
+          <div id="file-edit-list"></div>
+          <button onclick="saveAllDirectories()" style="margin-top: 1rem; background: #2196F3;">すべて保存</button>
+          <div id="save-status"></div>
+        </div>
       </div>
     </div>
 
@@ -303,25 +311,72 @@
       }
 
       // ファイル一覧取得
+      let fileListData = []; // グローバルに保存
+
       async function loadFileList() {
         document.getElementById('file-list').innerHTML = '読込中...';
+        document.getElementById('file-edit-section').style.display = 'none';
         try {
           const res = await fetch('/api/files/list');
           const json = await res.json();
           
           if (json.success && json.data.files.length > 0) {
+            fileListData = json.data.files;
+            
+            // テーブル表示
             let html = '<h2>登録済みファイル一覧（表形式）</h2>';
+            html += '<p style="color: #666; font-size: 0.9rem;">※ディレクトリ列を参考にしてください。</p>';
             html += '<table><thead><tr><th>ファイル名</th><th>ディレクトリ</th><th>登録日時</th></tr></thead><tbody>';
             json.data.files.forEach(f => {
-              html += `<tr><td>${f.filename}</td><td>${f.directory}</td><td>${f.createdAt}</td></tr>`;
+              html += `<tr><td>${f.filename}</td><td>${f.directory}</td><td>${new Date(f.createdAt).toLocaleString('ja-JP')}</td></tr>`;
             });
             html += '</tbody></table>';
             document.getElementById('file-list').innerHTML = html;
+            
+            // 編集欄を表示
+            document.getElementById('file-edit-section').style.display = 'block';
+            let editHtml = '';
+            json.data.files.forEach((f, i) => {
+              editHtml += `<div style="display: grid; grid-template-columns: 50px 1fr 2fr; gap: 0.5rem; margin-bottom: 0.5rem; align-items: center;">`;
+              editHtml += `<span>${i + 1}</span>`;
+              editHtml += `<span>${f.filename}</span>`;
+              editHtml += `<input type="text" id="dir-${f.docId}" value="${f.directory}" style="padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;" />`;
+              editHtml += `</div>`;
+            });
+            document.getElementById('file-edit-list').innerHTML = editHtml;
           } else {
             document.getElementById('file-list').innerHTML = '<div class="info">登録ファイルはありません。</div>';
           }
         } catch (e) {
           document.getElementById('file-list').innerHTML = `<div class="info">ファイル一覧取得でエラー: ${e.message}</div>`;
+        }
+      }
+
+      // すべてのディレクトリを保存
+      async function saveAllDirectories() {
+        const updates = fileListData.map(f => ({
+          docId: f.docId,
+          newDirectory: document.getElementById(`dir-${f.docId}`).value
+        }));
+        
+        document.getElementById('save-status').innerHTML = '保存中...';
+        try {
+          const res = await fetch('/api/files/update-directories', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ updates })
+          });
+          const json = await res.json();
+          
+          if (json.success) {
+            document.getElementById('save-status').innerHTML = '<div class="success">✓ すべてのディレクトリを更新しました。</div>';
+            // 一覧を再読み込み
+            setTimeout(() => loadFileList(), 1500);
+          } else {
+            document.getElementById('save-status').innerHTML = `<div class="info">更新失敗: ${json.error || '不明なエラー'}</div>`;
+          }
+        } catch (e) {
+          document.getElementById('save-status').innerHTML = `<div class="info">保存処理でエラー: ${e.message}</div>`;
         }
       }
     </script>
