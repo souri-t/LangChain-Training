@@ -20,6 +20,5 @@ def split_text(state: TranslationState) -> TranslationState:
     return {
         **state,
         "text_chunks": chunks,
-        "translated_chunks": [""] * len(chunks),
-        "current_index": 0
+        "translated_chunks": [""] * len(chunks)
     }

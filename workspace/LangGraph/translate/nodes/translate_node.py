@@ -11,7 +11,9 @@ def translate_chunk(state: TranslationState) -> TranslationState:
     Returns:
         更新された翻訳状態
     """
-    current_idx = state["current_index"]
+    # 翻訳済みチャンクの数から現在のインデックスを計算
+    translated_chunks = state["translated_chunks"]
+    current_idx = sum(1 for chunk in translated_chunks if chunk != "")
     total_chunks = len(state["text_chunks"])
     print(f"[2. ノード実行(translate)] チャンク翻訳 ({current_idx + 1}/{total_chunks})")
     
@@ -21,13 +23,12 @@ def translate_chunk(state: TranslationState) -> TranslationState:
     prompt = f"以下の英文を自然な日本語に翻訳してください。翻訳文のみを出力してください：\n\n{chunk}"
     response = llm.invoke(prompt)
     
-    translated_chunks = state["translated_chunks"].copy()
-    translated_chunks[current_idx] = response.content
+    new_translated_chunks = translated_chunks.copy()
+    new_translated_chunks[current_idx] = response.content
 
     print(f"[2. ノード完了(translate)] チャンク {current_idx + 1} の翻訳完了")
 
     return {
         **state,
-        "translated_chunks": translated_chunks,
-        "current_index": current_idx + 1
+        "translated_chunks": new_translated_chunks
     }

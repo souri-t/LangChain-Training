@@ -8,7 +8,7 @@ from .nodes import split_text, translate_chunk, combine_translations, should_con
 class Translator:
     """LangGraphを使用した長文翻訳エージェント"""
     
-    def __init__(self, api_key: str, base_url: str, model_name: str = "gpt-4o-mini", temperature: float = 0):
+    def __init__(self, api_key: str, base_url: str, model_name: str, temperature: float = 0):
         """
         Translatorの初期化
         
@@ -18,25 +18,14 @@ class Translator:
             model_name: 使用するモデル名（デフォルト: gpt-4o-mini）
             temperature: モデルの温度パラメータ（デフォルト: 0）
         """
-        self.api_key = api_key
-        self.base_url = base_url
-        self.model_name = model_name
-        self.temperature = temperature
-        self._llm = None
-    
-    @property
-    def llm(self) -> ChatOpenAI:
-        """LLMインスタンスの遅延初期化"""
-        if self._llm is None:
-            self._llm = ChatOpenAI(
-                model=self.model_name,
-                api_key=self.api_key,
-                base_url=self.base_url,
-                temperature=self.temperature
+        self._llm = ChatOpenAI(
+                model=model_name,
+                api_key=api_key,
+                base_url=base_url,
+                temperature=temperature
             )
-        return self._llm
-    
-    def create_translation_graph_app(self):
+
+    def _create_translation_graph_app(self):
         """
         翻訳グラフを作成
         
@@ -74,15 +63,14 @@ class Translator:
         Returns:
             翻訳されたテキスト
         """
-        app = self.create_translation_graph_app()
+        app = self._create_translation_graph_app()
         
         initial_state = {
             "original_text": text,
             "text_chunks": [],
             "translated_chunks": [],
-            "current_index": 0,
             "final_translation": "",
-            "llm": self.llm
+            "llm": self._llm
         }
         
         result = app.invoke(initial_state)
