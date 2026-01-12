@@ -1,4 +1,4 @@
-from typing import TypedDict, List
+from typing import TypedDict, List, Dict
 from langchain_openai import ChatOpenAI
 
 
@@ -9,3 +9,4 @@ class TranslationState(TypedDict):
     translated_chunks: List[str]  # 翻訳済みチャンクのリスト（未翻訳は空文字列）
     final_translation: str  # 最終的な翻訳結果（全チャンクを結合したもの）
     llm: ChatOpenAI  # 翻訳に使用するLLMインスタンス
+    detected_terms: List[Dict[str, str]]  # 各チャンクで検出された専門用語とその翻訳（英語: 日本語）

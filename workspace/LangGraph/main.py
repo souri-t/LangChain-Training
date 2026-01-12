@@ -21,22 +21,25 @@ def main():
         base_url=base_url,
         model_name=model_name
     )
-    
+        
+    # グラフ構造の保存（オプション）
+    translator.save_structure("translation_graph_structure.png")
+
+    # 専門用語を含むサンプルテキスト（AI/機械学習分野）
     sample_text = """
     Artificial intelligence (AI) is intelligence demonstrated by machines, in contrast to the natural intelligence displayed by humans and animals. Leading AI textbooks define the field as the study of "intelligent agents": any device that perceives its environment and takes actions that maximize its chance of successfully achieving its goals.
 
-    Colloquially, the term "artificial intelligence" is often used to describe machines (or computers) that mimic "cognitive" functions that humans associate with the human mind, such as "learning" and "problem solving". As machines become increasingly capable, tasks considered to require "intelligence" are often removed from the definition of AI, a phenomenon known as the AI effect.
+    Machine learning is a subset of AI that enables systems to learn and improve from experience without being explicitly programmed. Neural networks, which are inspired by biological neural networks, form the foundation of deep learning algorithms.
 
-    A machine with artificial general intelligence should be able to solve a wide variety of problems with breadth and versatility similar to human intelligence.
+    Modern AI systems utilize GPUs for parallel processing of complex algorithms. Cloud computing platforms provide the necessary infrastructure for training large-scale neural networks. These systems often employ HTTP APIs for integration with other software components.
+
+    A machine with artificial general intelligence (AGI) should be able to solve a wide variety of problems with breadth and versatility similar to human intelligence. Current research focuses on improving the cognitive capabilities of AI systems.
     """
     
     # 翻訳の実行
     result = translator.translate(sample_text)
     print("翻訳結果:")
     print(result)
-    
-    # グラフ構造の保存（オプション）
-    # translator.save_structure("translation_graph_structure.png")
 
 
 if __name__ == "__main__":

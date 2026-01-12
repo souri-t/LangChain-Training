@@ -2,7 +2,13 @@ from langgraph.graph import StateGraph, END
 from langchain_openai import ChatOpenAI
 
 from .state import TranslationState
-from .nodes import split_text, translate_chunk, combine_translations, should_continue
+from .nodes import (
+    split_text, 
+    analyze_terminology, 
+    translate_chunk, 
+    combine_translations, 
+    should_continue
+)
 
 
 class Translator:
@@ -29,6 +35,9 @@ class Translator:
         """
         翻訳グラフを作成
         
+        ワークフロー:
+        split → analyze_terminology → translate → (continue?) → combine
+        
         Returns:
             コンパイル済みのLangGraphアプリケーション
         """
@@ -36,16 +45,21 @@ class Translator:
         
         # ノードの追加
         workflow.add_node("split", split_text)
+        workflow.add_node("analyze_terminology", analyze_terminology)
         workflow.add_node("translate", translate_chunk)
         workflow.add_node("combine", combine_translations)
 
         # エッジの追加
         workflow.set_entry_point("split")
-        workflow.add_edge("split", "translate")
+        workflow.add_edge("split", "analyze_terminology")
+        workflow.add_edge("analyze_terminology", "translate")
+        
+        # 条件付きエッジ: 翻訳続行か結合か判定
         workflow.add_conditional_edges("translate", should_continue, {
             "translate": "translate",
             "combine": "combine"
         })
+        
         workflow.add_edge("combine", END)
         
         # グラフのコンパイル
@@ -70,7 +84,8 @@ class Translator:
             "text_chunks": [],
             "translated_chunks": [],
             "final_translation": "",
-            "llm": self._llm
+            "llm": self._llm,
+            "detected_terms": []
         }
         
         result = app.invoke(initial_state)
@@ -83,7 +98,7 @@ class Translator:
         Args:
             file_path: 保存先のファイルパス（デフォルト: graph_structure.png）
         """
-        app = self.create_translation_graph_app()
+        app = self._create_translation_graph_app()
         if not app:
             return
         with open(file_path, "wb") as f:
