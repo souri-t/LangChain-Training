@@ -3,7 +3,7 @@
 # 埋め込みバックエンドの選択: "generic", "azure-openai", "sentence-transformer"
 # 注: "generic" は OpenAI API 互換エンドポイント（OpenRouter, Ollama など）
 embedder:
-  type: "generic"  # "generic", "azure-openai", "sentence-transformer"
+  type: "sentence-transformer"  # "generic", "azure-openai", "sentence-transformer"
 
 # 汎用エンドポイント設定（type: "generic" の場合に使用）
 # OpenRouter, Ollama, その他 OpenAI API 互換エンドポイント対応
@@ -12,8 +12,8 @@ generic:
   # embedding_url: "http://host.docker.internal:1234/v1/embeddings"  # エンドポイント URL
   # model: "text-embedding-nomic-embed-text-v1.5@q8_0"  # モデル名
   api_key: ""  # APIキー（Ollama などローカルサーバーでは不要）
-  embedding_url: "http://host.docker.internal:11434/api/embeddings"  # エンドポイント URL
-  model: "embeddinggemma:latest"  # モデル名
+  embedding_url: "http://ollama:11434/api/embed"  # エンドポイント URL (Docker内ではサービス名を使用)
+  model: "mxbai-embed-large"  # モデル名（多言語対応、日本語サポート）
 
 # Azure OpenAI 設定（type: "azure-openai" の場合に使用）
 azure_openai:
@@ -24,10 +24,10 @@ azure_openai:
 
 # Sentence-Transformers 設定（type: "sentence-transformer" の場合に使用）
 sentence_transformer:
-  model_name: "all-mpnet-base-v2"  # 使用するモデル名（軽量・高速）
+  model_name: "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"  # 多言語対応（日本語サポート）
   # 他の推奨モデル:
-  # - "paraphrase-multilingual-MiniLM-L12-v2" (多言語対応)
-  # - "all-mpnet-base-v2" (高精度)
+  # - "paraphrase-multilingual-MiniLM-L12-v2" (軽量・多言語対応)
+  # - "all-mpnet-base-v2" (英語のみ・高精度)
 
 # ChromaDB 設定
 chroma:

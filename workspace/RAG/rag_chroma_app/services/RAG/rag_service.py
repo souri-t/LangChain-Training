@@ -43,10 +43,63 @@ class RAGService:
         # ChromaDB初期化
         self.client = chromadb.PersistentClient(path=chroma_persist_directory)
         self.collection = self.client.get_or_create_collection("rag_collection")
+        # チャンク分割設定（モデルのコンテキスト長に応じて調整）
+        self.max_chunk_chars = 500  # 1チャンクの最大文字数
+
+    def _split_text_into_chunks(self, text: str, max_chars: int = 500) -> List[str]:
+        """
+        長いテキストを指定文字数以下のチャンクに分割する。
+        文の途中で分割しないように、改行や句点を考慮する。
+        Args:
+            text (str): 分割対象のテキスト
+            max_chars (int): 1チャンクの最大文字数
+        Returns:
+            List[str]: 分割されたテキストチャンクのリスト
+        """
+        if len(text) <= max_chars:
+            return [text]
+        
+        chunks = []
+        current_chunk = ""
+        
+        # 段落で分割
+        paragraphs = text.split('\n')
+        
+        for para in paragraphs:
+            # 段落自体が長い場合は、句点で分割
+            if len(para) > max_chars:
+                sentences = para.replace('。', '。\n').split('\n')
+                for sent in sentences:
+                    if not sent.strip():
+                        continue
+                    # 現在のチャンクに追加できる場合
+                    if len(current_chunk) + len(sent) + 1 <= max_chars:
+                        current_chunk += sent + '\n'
+                    else:
+                        # チャンクが空でない場合は保存
+                        if current_chunk.strip():
+                            chunks.append(current_chunk.strip())
+                        current_chunk = sent + '\n'
+            else:
+                # 段落を追加できる場合
+                if len(current_chunk) + len(para) + 1 <= max_chars:
+                    current_chunk += para + '\n'
+                else:
+                    # チャンクが空でない場合は保存
+                    if current_chunk.strip():
+                        chunks.append(current_chunk.strip())
+                    current_chunk = para + '\n'
+        
+        # 最後のチャンクを保存
+        if current_chunk.strip():
+            chunks.append(current_chunk.strip())
+        
+        return chunks if chunks else [text]
 
     def vectorize_and_register(self, texts: List[str], filenames: List[str]) -> None:
         """
         テキストリストをベクトル化し、ChromaDBに登録する。
+        長いテキストは自動的にチャンクに分割される。
         既存のファイル名は上書き登録される。
         Args:
             texts (List[str]): 登録するテキストリスト
@@ -54,16 +107,32 @@ class RAGService:
         Raises:
             Exception: ベクトル化・登録処理でエラーが発生した場合
         """
-        # embedder を使ってベクトル化
-        embeddings = self.embedder.embed(texts)
-        # 既存ファイルを削除してから登録
+        # 既存ファイルを削除
         for fn in filenames:
             self._delete_by_filename(fn)
-        # メタデータ作成（登録日時・ディレクトリ）
+        
+        # テキストをチャンクに分割
+        all_chunks = []
+        all_metadatas = []
         now = datetime.now().isoformat(timespec='seconds')
-        metadatas = [{"filename": fn, "created_at": now, "directory": "/"} for fn in filenames]
+        
+        for text, filename in zip(texts, filenames):
+            chunks = self._split_text_into_chunks(text, self.max_chunk_chars)
+            for i, chunk in enumerate(chunks):
+                all_chunks.append(chunk)
+                all_metadatas.append({
+                    "filename": filename,
+                    "created_at": now,
+                    "directory": "/",
+                    "chunk_index": i,
+                    "total_chunks": len(chunks)
+                })
+        
+        # embedder を使ってベクトル化（チャンク単位）
+        embeddings = self.embedder.embed(all_chunks)
+        
         # ChromaDB登録
-        self._add_documents(texts, metadatas=metadatas, embeddings=embeddings)
+        self._add_documents(all_chunks, metadatas=all_metadatas, embeddings=embeddings)
 
     def _add_documents(self, texts: List[str], metadatas: List[dict] = None, embeddings: List[List[float]] = None) -> None:
         """
@@ -113,6 +182,24 @@ class RAGService:
                 ids_to_delete.append(doc_id)
         if ids_to_delete:
             self.collection.delete(ids=ids_to_delete)
+
+    def delete_file(self, filename: str) -> int:
+        """
+        指定したファイル名に一致するドキュメント（全チャンク）をコレクションから削除する。
+        公開メソッド。
+        Args:
+            filename (str): 削除対象のファイル名
+        Returns:
+            int: 削除されたドキュメント数（チャンク数）
+        """
+        ids_to_delete = []
+        all_docs = self.collection.get()
+        for doc_id, meta in zip(all_docs.get('ids', []), all_docs.get('metadatas', [])):
+            if meta.get('filename') == filename:
+                ids_to_delete.append(doc_id)
+        if ids_to_delete:
+            self.collection.delete(ids=ids_to_delete)
+        return len(ids_to_delete)
 
     def _update_metadata(self, doc_id: str, new_metadata: dict) -> None:
         """
@@ -175,22 +262,32 @@ class RAGService:
     def get_file_list(self) -> List[Dict]:
         """
         登録済みファイル一覧を取得する。
+        チャンク分割されたファイルはファイル名でグループ化し、1つのエントリとして返す。
         Returns:
-            List[Dict]: ファイル情報リスト（各要素は{"filename", "directory", "created_at", "doc_id"}を含む辞書）
+            List[Dict]: ファイル情報リスト（各要素は{"filename", "directory", "created_at", "chunk_count", "doc_ids"}を含む辞書）
         """
         result = self.collection.get()
         metadatas = result.get("metadatas", [])
         ids = result.get("ids", [])
         
-        file_list = []
+        # ファイル名でグループ化
+        file_dict = {}
         for i, meta in enumerate(metadatas):
-            file_list.append({
-                "filename": meta.get("filename", "(不明)"),
-                "directory": meta.get("directory", "/"),
-                "created_at": meta.get("created_at", "-"),
-                "doc_id": ids[i] if i < len(ids) else None
-            })
+            filename = meta.get("filename", "(不明)")
+            if filename not in file_dict:
+                file_dict[filename] = {
+                    "filename": filename,
+                    "directory": meta.get("directory", "/"),
+                    "created_at": meta.get("created_at", "-"),
+                    "chunk_count": 0,
+                    "doc_ids": []
+                }
+            file_dict[filename]["chunk_count"] += 1
+            if i < len(ids):
+                file_dict[filename]["doc_ids"].append(ids[i])
         
+        # リストに変換（作成日時でソート）
+        file_list = sorted(file_dict.values(), key=lambda x: x["created_at"], reverse=True)
         return file_list
 
     def update_directories(self, updates: List[Dict]) -> None:

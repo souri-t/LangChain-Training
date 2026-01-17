@@ -71,7 +71,7 @@ try:
             st.session_state['dir_edits'] = [f['directory'] for f in file_list]
 
         # テーブルの各行にテキストボックスを配置
-        st.caption("※ディレクトリ列を参考にしてください。")
+        st.caption("※ディレクトリ列を参考にしてください。チャンク数は分割されたテキストの数です。")
         # st.tableで静的表示
         import pandas as pd
         rows = []
@@ -79,20 +79,30 @@ try:
             rows.append({
                 "ファイル名": file_info['filename'],
                 "ディレクトリ": st.session_state['dir_edits'][i],
+                "チャンク数": file_info['chunk_count'],
                 "登録日時": file_info['created_at']
             })
         df = pd.DataFrame(rows)
         st.table(df)
 
-        st.caption("※下の各行でディレクトリを編集後、『すべて保存』ボタンで一括反映できます。")
+        st.caption("※下の各行でディレクトリを編集後、『すべて保存』ボタンで一括反映できます。削除ボタンで個別にファイルを削除できます。")
         st.markdown("---")
-        st.write("### ディレクトリ編集欄")
+        st.write("### ディレクトリ編集・削除")
         for i, file_info in enumerate(file_list):
-            col1, col2, col3 = st.columns([1, 5, 6])
+            col1, col2, col3, col4 = st.columns([1, 4, 5, 2])
             col1.write(i+1)
-            col2.write(file_info['filename'])
-            new_dir = col3.text_input("ディレクトリ", value=st.session_state['dir_edits'][i], key=f"edit_dir_{i}")
+            col2.write(f"{file_info['filename']} ({file_info['chunk_count']}チャンク)")
+            new_dir = col3.text_input("ディレクトリ", value=st.session_state['dir_edits'][i], key=f"edit_dir_{i}", label_visibility="collapsed")
             st.session_state['dir_edits'][i] = new_dir
+            
+            # 削除ボタン
+            if col4.button("🗑️ 削除", key=f"delete_{i}", type="secondary"):
+                try:
+                    deleted_count = rag_service.delete_file(file_info['filename'])
+                    st.success(f"✓ {file_info['filename']} を削除しました（{deleted_count}チャンク）")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"削除エラー: {e}")
         
         # 「すべて保存」ボタンをディレクトリ編集欄の下に配置
         st.markdown("---")
@@ -100,10 +110,12 @@ try:
             try:
                 updates = []
                 for i, file_info in enumerate(file_list):
-                    updates.append({
-                        "doc_id": file_info['doc_id'],
-                        "new_directory": st.session_state['dir_edits'][i]
-                    })
+                    # 各ファイルの全チャンク（doc_ids）を更新
+                    for doc_id in file_info['doc_ids']:
+                        updates.append({
+                            "doc_id": doc_id,
+                            "new_directory": st.session_state['dir_edits'][i]
+                        })
                 rag_service.update_directories(updates)
                 st.success("すべてのディレクトリを更新しました。ページを再読み込みしてください。")
             except Exception as e:

@@ -1,6 +1,23 @@
 version: '3.8'
 
 services:
+  # Ollama サービス（埋め込みモデルエンジン）
+  ollama:
+    image: ollama/ollama:latest
+    container_name: rag_ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - rag_network
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
   # FastAPI WebAPI サーバー
   api:
     build:
@@ -16,6 +33,9 @@ services:
       - ./:/app
     networks:
       - rag_network
+    depends_on:
+      ollama:
+        condition: service_healthy
     command: python3 -m uvicorn api_server:app --host 0.0.0.0 --port 8000 --reload
 
   # Streamlit UI アプリ
@@ -44,5 +64,7 @@ networks:
     driver: bridge
 
 volumes:
+  ollama_data:
+    driver: local
   streamlit_cache:
     driver: local

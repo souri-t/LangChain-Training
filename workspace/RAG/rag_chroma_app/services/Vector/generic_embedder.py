@@ -66,18 +66,19 @@ class GenericEmbedder(BaseEmbedder):
 
         embeddings = []
         
-        # Ollama の場合（/api/embeddings エンドポイント）
-        if "/api/embeddings" in self.embedding_url:
-            # Ollama は1テキストずつ処理する必要がある
+        # Ollama の場合（/api/embed エンドポイント）
+        if "/api/embed" in self.embedding_url:
+            # Ollama は1テキストずつ処理
             for text in texts:
                 data = {
                     "model": self.model,
-                    "prompt": text
+                    "input": text  # Ollamaでは "input" キーを使用
                 }
                 response = requests.post(self.embedding_url, headers=headers, json=data, timeout=30)
                 response.raise_for_status()
                 result = response.json()
-                embeddings.append(result["embedding"])
+                # Ollamaは embeddings 配列（二次元配列）を返すので、最初の要素を取得
+                embeddings.append(result["embeddings"][0])
         else:
             # OpenAI API 互換形式（OpenRouter など）
             data = {
